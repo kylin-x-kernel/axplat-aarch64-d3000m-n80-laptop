@@ -1,2 +1,4 @@
 .DS_Store
 /target
+tools/wrapper.o
+tools/wrapper.bin
