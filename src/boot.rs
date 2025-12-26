@@ -92,6 +92,7 @@ unsafe extern "C" fn _start() -> ! {
         mov     sp, x8
 
         bl      {switch_to_el1}         // switch to EL1
+        bl      {enable_fp}             // enable fp/neon
 
         mov     x0, x19                 // call_main(cpu_id, dtb)
         mov     x1, x20
@@ -100,7 +101,7 @@ unsafe extern "C" fn _start() -> ! {
         switch_to_el1 = sym axcpu::init::switch_to_el1,
         // init_mmu = sym axcpu::init::init_mmu,
         // init_boot_page_table = sym init_boot_page_table,
-        // enable_fp = sym enable_fp,
+        enable_fp = sym enable_fp,
         // boot_pt = sym BOOT_PT_L0,
         // phys_virt_offset = const PHYS_VIRT_OFFSET,
         boot_stack = sym BOOT_STACK,
