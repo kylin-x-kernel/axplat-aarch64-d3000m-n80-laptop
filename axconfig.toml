@@ -49,7 +49,9 @@ mmio-ranges = [
     # [0x1000_0000, 0x2eff_0000],     # PCI memory ranges (ranges 1: 32-bit MMIO space)
     # [0x40_1000_0000, 0x1000_0000],  # PCI config space
 ]                                   # [(uint, uint)]
-
+virtio-mmio-ranges = [
+    # [0x0a00_0000, 0x4000],      # VirtIO
+]                                   # [(uint, uint)]
 # Base physical address of the PCIe ECAM space.
 pci-ecam-base = 0x40_1000_0000  # uint
 # End PCI bus number (`bus-range` property in device tree).

@@ -16,7 +16,6 @@ unsafe fn init_boot_page_table() {
     unsafe {
         // 0x0000_0000_0000 ~ 0x0080_0000_0000, table
         BOOT_PT_L0[0] = A64PTE::new_table(pa!(&raw mut BOOT_PT_L1 as usize));
-        // 0x0000_0000_0000..0x0000_4000_0000, 1G block, device memory
         BOOT_PT_L1[0] = A64PTE::new_page(
             pa!(0),
             MappingFlags::READ | MappingFlags::WRITE | MappingFlags::DEVICE,
@@ -25,6 +24,20 @@ unsafe fn init_boot_page_table() {
         // 0x0000_4000_0000..0x0000_8000_0000, 1G block, normal memory
         BOOT_PT_L1[1] = A64PTE::new_page(
             pa!(0x4000_0000),
+            MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE,
+            true,
+        );
+
+        // 0x0000_8000_0000..0x0000_C000_0000, 1G block, normal memory_set
+        BOOT_PT_L1[2] = A64PTE::new_page(
+            pa!(0x8000_0000),
+            MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE,
+            true,
+        );
+
+        // 0x0000_C000_0000..0x0001_0000_0000, 1G block, normal memory_set
+        BOOT_PT_L1[3] = A64PTE::new_page(
+            pa!(0xC000_0000),
             MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE,
             true,
         );
@@ -49,39 +62,20 @@ unsafe fn enable_fp() {
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text.boot")]
 unsafe extern "C" fn _start() -> ! {
-//     const FLAG_LE: usize = 0b0;
-//     const FLAG_PAGE_SIZE_4K: usize = 0b10;
-//     const FLAG_ANY_MEM: usize = 0b1000;
-//     // PC = bootloader load address
-//     // X0 = dtb
-//     core::arch::naked_asm!("
-//         add     x13, x18, #0x16     // 'MZ' magic
-//         b       {entry}             // Branch to kernel start, magic
+    core::arch::naked_asm!("
+         bl       {entry}             // Branch to kernel start, magic
+        .space 52, 0
+        .inst 0x644d5241
+        .space 4, 0
+    ",
+    entry = sym _start_primary,
+    )
+}
 
-//         .quad   0                   // Image load offset from start of RAM, little-endian
-//         .quad   _ekernel - _start   // Effective size of kernel image, little-endian
-//         .quad   {flags}             // Kernel flags, little-endian
-//         .quad   0                   // reserved
-//         .quad   0                   // reserved
-//         .quad   0                   // reserved
-//         .ascii  \"ARM\\x64\"        // Magic number
-//         .long   0                   // reserved (used for PE COFF offset)",
-//         flags = const FLAG_LE | FLAG_PAGE_SIZE_4K | FLAG_ANY_MEM,
-//         entry = sym _start_primary,
-//     )
-// }
-//         // bl      {switch_to_el1}         // switch to EL1
-//         // bl      {enable_fp}             // enable fp/neon
-//         // bl      {init_boot_page_table}
-//         // adrp    x0, {boot_pt}
-//         // bl      {init_mmu}              // setup MMU
-
-//         // mov     x8, {phys_virt_offset}  // set SP to the high address
-//         // add     sp, sp, x8
-// /// The earliest entry point for the primary CPU.
-// #[unsafe(naked)]
-// unsafe extern "C" fn _start_primary() -> ! {
-//     // X0 = dtb
+/// The earliest entry point for the primary CPU.
+#[unsafe(naked)]
+unsafe extern "C" fn _start_primary() -> ! {
+    // X0 = dtb
     core::arch::naked_asm!("
         mrs     x19, mpidr_el1
         and     x19, x19, #0xffffff     // get current CPU id
@@ -93,17 +87,23 @@ unsafe extern "C" fn _start() -> ! {
 
         bl      {switch_to_el1}         // switch to EL1
         bl      {enable_fp}             // enable fp/neon
+        bl      {init_boot_page_table}
+        adrp    x0, {boot_pt}
+        bl      {init_mmu}              // setup MMU
+
+        mov     x8, {phys_virt_offset}  // set SP to the high address
+        add     sp, sp, x8
 
         mov     x0, x19                 // call_main(cpu_id, dtb)
         mov     x1, x20
         bl      {entry}
         b      .",
         switch_to_el1 = sym axcpu::init::switch_to_el1,
-        // init_mmu = sym axcpu::init::init_mmu,
-        // init_boot_page_table = sym init_boot_page_table,
+        init_mmu = sym axcpu::init::init_mmu,
+        init_boot_page_table = sym init_boot_page_table,
         enable_fp = sym enable_fp,
-        // boot_pt = sym BOOT_PT_L0,
-        // phys_virt_offset = const PHYS_VIRT_OFFSET,
+        boot_pt = sym BOOT_PT_L0,
+        phys_virt_offset = const PHYS_VIRT_OFFSET,
         boot_stack = sym BOOT_STACK,
         boot_stack_size = const BOOT_STACK_SIZE,
         entry = sym axplat::call_main,
@@ -139,29 +139,4 @@ pub(crate) unsafe extern "C" fn _start_secondary() -> ! {
         phys_virt_offset = const PHYS_VIRT_OFFSET,
         entry = sym axplat::call_secondary_main,
     )
-}
-
-// UART0 基地址 (QEMU virt 机器)
-const UART0_BASE: usize = 0x18002000;
-// const UART0_BASE: usize = 0x09000000;
-
-/// 向 UART 写入一个字符
-fn uart_putc(c: u8) {
-    unsafe {
-        let uart = UART0_BASE as *mut u8;
-        core::ptr::write_volatile(uart, c);
-    }
-}
-
-/// 打印字符串到 UART
-fn uart_puts(s: &str) {
-    for c in s.bytes() {
-        uart_putc(c);
-    }
-}
-
-fn test_main() -> ! {
-    uart_puts("Hello, RSTiny World!\n");
-
-    loop {}
 }

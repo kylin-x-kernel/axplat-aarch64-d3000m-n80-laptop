@@ -9,6 +9,7 @@ mod boot;
 mod init;
 mod mem;
 mod power;
+mod pl011;
 mod gicv3;
 
 pub mod config {
@@ -26,6 +27,5 @@ pub mod config {
     );
 }
 
-axplat_aarch64_peripherals::console_if_impl!(ConsoleIfImpl);
 axplat_aarch64_peripherals::time_if_impl!(TimeIfImpl);
 

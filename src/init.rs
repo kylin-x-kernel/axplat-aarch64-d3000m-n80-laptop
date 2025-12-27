@@ -15,9 +15,9 @@ impl InitIf for InitIfImpl {
     /// and performed earliest platform configuration and initialization (e.g.,
     /// early console, clocking).
     fn init_early(_cpu_id: usize, _dtb: usize) {
-        axcpu::init::init_trap();
+        // axcpu::init::init_trap();
         axplat_aarch64_peripherals::pl011::init_early(phys_to_virt(pa!(UART_PADDR)));
-        axplat_aarch64_peripherals::psci::init(PSCI_METHOD);
+        // axplat_aarch64_peripherals::psci::init(PSCI_METHOD);
         axplat_aarch64_peripherals::generic_timer::init_early();
         #[cfg(feature = "rtc")]
         axplat_aarch64_peripherals::pl031::init_early(phys_to_virt(pa!(RTC_PADDR)));
