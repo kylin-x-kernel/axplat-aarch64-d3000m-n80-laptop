@@ -48,7 +48,7 @@
 .set FILE_ALIGN,                    0x200           /* 512B 文件对齐 */
 
 /* ArceOS 相关偏移 (从 helloworld ELF 分析得出) */
-.set ARCEOS_CODE_OFFSET,            0x1048          /* _start_primary 相对于 _start 的偏移 */
+.set ARCEOS_CODE_OFFSET,            0x2000          /* _start_primary 相对于 _start 的偏移 */
 
 /* ============================================================
  * ARM64 Linux Image Header (offset 0x00 - 0x3F, 64 bytes)
@@ -74,7 +74,7 @@ _start:
      * 这个跳转需要和 ArceOS 原始跳转保持相同的偏移！
      * ArceOS 原始: 从 0x04 跳到 0x1048，偏移 = 0x1044 / 4 = 0x411
      */
-    b       .L_arceos_entry         /* 跳转到 0x1048 */
+    b       .L_arceos_entry         /* 跳转到 0x2000 */
 
     /* 0x08: text_offset - Image 加载偏移 */
     .quad   0
@@ -130,7 +130,7 @@ _start:
     .long   0x200000                            /* SizeOfCode (2MB) */
     .long   0                                   /* SizeOfInitializedData */
     .long   0                                   /* SizeOfUninitializedData */
-    .long   ARCEOS_CODE_OFFSET                  /* AddressOfEntryPoint = 0x1048 */
+    .long   ARCEOS_CODE_OFFSET                  /* AddressOfEntryPoint = 0x2000 */
     .long   ARCEOS_CODE_OFFSET                  /* BaseOfCode */
 
     /* Windows-Specific Fields (PE32+) */
@@ -187,7 +187,7 @@ _start:
     .set    .L_section_count, (. - .L_section_table) / 40
 
 /* ============================================================
- * 填充到 0x1048 (ArceOS _start_primary 入口)
+ * 填充到 0x2000 (ArceOS _start_primary 入口)
  * ============================================================ */
 
     .balign 4
