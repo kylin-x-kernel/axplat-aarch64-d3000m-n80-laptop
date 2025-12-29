@@ -149,8 +149,8 @@ unsafe extern "C" fn _start() -> ! {
         phys_virt_offset = const PHYS_VIRT_OFFSET,
         boot_stack = sym BOOT_STACK,
         boot_stack_size = const BOOT_STACK_SIZE,
-        entry = sym test_main,
-        // entry = sym axplat::call_main,
+        // entry = sym test_main,
+        entry = sym axplat::call_main,
     )
 }
 
