@@ -1,10 +1,6 @@
-use core::arch::asm;
-
 use axplat::mem::{Aligned4K, pa};
 use page_table_entry::{GenericPTE, MappingFlags, aarch64::A64PTE};
 
-use aarch64_cpu::{asm::barrier, registers::*};
-use memory_addr::{PhysAddr, VirtAddr};
 use crate::config::plat::{BOOT_STACK_SIZE, PHYS_VIRT_OFFSET};
 
 #[unsafe(link_section = ".bss.stack")]
@@ -16,51 +12,35 @@ static mut BOOT_PT_L0: Aligned4K<[A64PTE; 512]> = Aligned4K::new([A64PTE::empty(
 #[unsafe(link_section = ".data.boot_page_table")]
 static mut BOOT_PT_L1: Aligned4K<[A64PTE; 512]> = Aligned4K::new([A64PTE::empty(); 512]);
 
-unsafe fn init_boot_page_table(boot_pt_l0_paddr: usize) {
+unsafe fn init_boot_page_table() {
     unsafe {
         // 0x0000_0000_0000 ~ 0x0080_0000_0000, table
-        // 注意：这里不能直接用 &raw mut BOOT_PT_L1，因为那是虚拟地址（虽然还没开MMU，但链接器认为是虚拟地址）
-        // 我们需要计算 BOOT_PT_L1 相对于 BOOT_PT_L0 的偏移
-        let l0_ptr = &raw mut BOOT_PT_L0 as usize;
-        let l1_ptr = &raw mut BOOT_PT_L1 as usize;
-        let offset = l1_ptr - l0_ptr;
-        let l1_paddr = boot_pt_l0_paddr + offset;
-
-        BOOT_PT_L0[0] = A64PTE::new_table(pa!(l1_paddr));
-        
-        // 0x0000_0000_0000..0x0000_4000_0000, 1G block, device memory
+        BOOT_PT_L0[0] = A64PTE::new_table(pa!(&raw mut BOOT_PT_L1 as usize));
         BOOT_PT_L1[0] = A64PTE::new_page(
             pa!(0),
             MappingFlags::READ | MappingFlags::WRITE | MappingFlags::DEVICE,
             true,
         );
+        // 0x0000_4000_0000..0x0000_8000_0000, 1G block, normal memory
+        BOOT_PT_L1[1] = A64PTE::new_page(
+            pa!(0x4000_0000),
+            MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE,
+            true,
+        );
 
-        // 动态映射当前物理内存所在的 1GB
-        // 假设 boot_pt_l0_paddr 就在内核代码附近
-        let kernel_base_1g = boot_pt_l0_paddr & !(0x4000_0000 - 1); // 对齐到 1GB
-        let idx = kernel_base_1g >> 30; // 1GB = 2^30
+        // 0x0000_8000_0000..0x0000_C000_0000, 1G block, normal memory_set
+        BOOT_PT_L1[2] = A64PTE::new_page(
+            pa!(0x8000_0000),
+            MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE,
+            true,
+        );
 
-        // 如果当前物理地址不在 0~1GB 范围内（即 idx > 0），我们需要在 L1 表中建立映射
-        // 注意：BOOT_PT_L1 只有 512 项，每项映射 1GB（因为它是 L1 表，且 L0 指向它）
-        // 等等，L0[0] 指向 L1。L0 的每一项覆盖 512GB。L1 的每一项覆盖 1GB。
-        // 所以 L1[0] 是 0~1GB, L1[1] 是 1GB~2GB。
-        
-        if idx < 512 {
-             BOOT_PT_L1[idx] = A64PTE::new_page(
-                pa!(kernel_base_1g),
-                MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE,
-                true,
-            );
-        }
-        
-        // 保留原来的 0x4000_0000 映射（为了兼容 QEMU 默认情况）
-        if idx != 1 {
-             BOOT_PT_L1[1] = A64PTE::new_page(
-                pa!(0x4000_0000),
-                MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE,
-                true,
-            );
-        }
+        // 0x0000_C000_0000..0x0001_0000_0000, 1G block, normal memory_set
+        BOOT_PT_L1[3] = A64PTE::new_page(
+            pa!(0xC000_0000),
+            MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE,
+            true,
+        );
     }
 }
 
@@ -81,7 +61,7 @@ unsafe fn enable_fp() {
 #[unsafe(naked)]
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text.boot")]
-unsafe extern "C" fn _start() -> ! {
+unsafe extern "C" fn _start() {
     const FLAG_LE: usize = 0b0;
     const FLAG_PAGE_SIZE_4K: usize = 0b10;
     const FLAG_ANY_MEM: usize = 0b1000;
@@ -105,7 +85,7 @@ unsafe extern "C" fn _start() -> ! {
 }
 /// The earliest entry point for the primary CPU.
 #[unsafe(naked)]
-unsafe extern "C" fn _start_primary() -> ! {
+unsafe extern "C" fn _start_primary() {
     // X0 = dtb
     core::arch::naked_asm!("
         mrs     x19, mpidr_el1
@@ -134,7 +114,7 @@ unsafe extern "C" fn _start_primary() -> ! {
         bl      {entry}
         b      .",
         switch_to_el1 = sym axcpu::init::switch_to_el1,
-        init_mmu = sym init_mmu,
+        init_mmu = sym axcpu::init::init_mmu,
         init_boot_page_table = sym init_boot_page_table,
         enable_fp = sym enable_fp,
         boot_pt = sym BOOT_PT_L0,
@@ -149,7 +129,7 @@ unsafe extern "C" fn _start_primary() -> ! {
 /// The earliest entry point for the secondary CPUs.
 #[cfg(feature = "smp")]
 #[unsafe(naked)]
-pub(crate) unsafe extern "C" fn _start_secondary() -> ! {
+pub(crate) unsafe extern "C" fn _start_secondary() {
     // X0 = stack pointer
     core::arch::naked_asm!("
         mrs     x19, mpidr_el1
@@ -169,7 +149,7 @@ pub(crate) unsafe extern "C" fn _start_secondary() -> ! {
         blr     x8
         b      .",
         switch_to_el1 = sym axcpu::init::switch_to_el1,
-        init_mmu = sym init_mmu,
+        init_mmu = sym axcpu::init::init_mmu,
         enable_fp = sym enable_fp,
         boot_pt = sym BOOT_PT_L0,
         phys_virt_offset = const PHYS_VIRT_OFFSET,
@@ -313,104 +293,4 @@ pub fn print_el2_reg(switch: bool) {
     boot_print_reg!("ID_AA64PFR0_EL1");
     boot_print_reg!("ID_AA64PFR1_EL1");
     boot_print_str("=== End EL2 Registers ===\r\n\r\n");
-}
-
-/// 向 UART 写入一个字符
-fn uart_putc(c: u8) {
-    boot_serial_send(c);
-}
-
-/// 打印字符串到 UART
-fn uart_puts(s: &str) {
-    boot_print_str(s);
-}
-
-/// Configures and enables the MMU on the current CPU.
-///
-/// It first sets `MAIR_EL1`, `TCR_EL1`, `TTBR0_EL1`, `TTBR1_EL1` registers to
-/// the conventional values, and then enables the MMU and caches by setting
-/// `SCTLR_EL1`.
-///
-/// # Safety
-///
-/// This function is unsafe as it changes the address translation configuration.
-pub unsafe fn init_mmu(root_paddr: PhysAddr) {
-     // print _start symbol address 
-     _boot_print_usize(_start as usize);
-    _boot_print_usize(root_paddr.as_usize());
-    _boot_print_usize(&raw mut BOOT_PT_L0 as usize);
-    use page_table_entry::aarch64::MemAttr;
-
-    MAIR_EL1.set(MemAttr::MAIR_VALUE);
-
-    // Enable TTBR0 and TTBR1 walks, page size = 4K, vaddr size = 48 bits, paddr size = 48 bits.
-    let tcr_flags0 = TCR_EL1::EPD0::EnableTTBR0Walks
-        + TCR_EL1::TG0::KiB_4
-        + TCR_EL1::SH0::Inner
-        + TCR_EL1::ORGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-        + TCR_EL1::IRGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-        + TCR_EL1::T0SZ.val(16);
-    let tcr_flags1 = TCR_EL1::EPD1::EnableTTBR1Walks
-        + TCR_EL1::TG1::KiB_4
-        + TCR_EL1::SH1::Inner
-        + TCR_EL1::ORGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-        + TCR_EL1::IRGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-        + TCR_EL1::T1SZ.val(16);
-    TCR_EL1.write(TCR_EL1::IPS::Bits_48 + tcr_flags0 + tcr_flags1);
-    barrier::isb(barrier::SY);
-
-    // Set both TTBR0 and TTBR1
-    let root_paddr = root_paddr.as_usize() as u64;
-    TTBR0_EL1.set(root_paddr);
-    TTBR1_EL1.set(root_paddr);
-
-    // Flush the entire TLB
-    flush_tlb(None);
-
-    // Enable the MMU and turn on I-cache and D-cache
-    SCTLR_EL1.modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
-    // Disable SPAN
-    SCTLR_EL1.set(SCTLR_EL1.get() | (1 << 23));
-    barrier::isb(barrier::SY);
-}
-
-fn test_main() -> ! {
-    uart_puts("Hello, RSTiny World!\n");
-
-    loop {}
-}
-#[inline]
-pub fn flush_tlb(vaddr: Option<VirtAddr>) {
-    if let Some(vaddr) = vaddr {
-        const VA_MASK: usize = (1 << 44) - 1; // VA[55:12] => bits[43:0]
-        #[allow(unused_variables)]
-        let operand = (vaddr.as_usize() >> 12) & VA_MASK;
-
-        #[cfg(not(feature = "arm-el2"))]
-        unsafe {
-            // TLB Invalidate by VA, All ASID, EL1, Inner Shareable
-
-            use core::arch::asm;
-            asm!("dsb sy; isb; tlbi vmalle1; dsb sy; isb")
-        }
-        #[cfg(feature = "arm-el2")]
-        unsafe {
-            // TLB Invalidate by VA, EL2, Inner Shareable
-            asm!("tlbi vae2is, {}; dsb sy; isb", in(reg) operand)
-        }
-    } else {
-        // flush the entire TLB
-        #[cfg(not(feature = "arm-el2"))]
-        unsafe {
-            // TLB Invalidate by VMID, All at stage 1, EL1
-
-            use core::arch::asm;
-            asm!("tlbi vmalle1; dsb sy; isb")
-        }
-        #[cfg(feature = "arm-el2")]
-        unsafe {
-            // TLB Invalidate All, EL2
-            asm!("tlbi alle2; dsb sy; isb")
-        }
-    }
 }

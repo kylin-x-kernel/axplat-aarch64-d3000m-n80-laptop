@@ -13,13 +13,13 @@ package = "axplat-aarch64-d3000m-n80-laptop"            # str
 # detection, it's also the number of CPUs to boot.
 max-cpu-num = 1                     # uint
 # Base address of the whole physical memory.
-phys-memory-base = 0x8000_0000      # uint
+phys-memory-base = 0x4000_0000      # uint
 # Size of the whole physical memory. (128M)
 phys-memory-size = 0x800_0000       # uint
 # Base physical address of the kernel image.
-kernel-base-paddr = 0xf026_2000     # uint
+kernel-base-paddr = 0xf159f000     # uint
 # Base virtual address of the kernel image.
-kernel-base-vaddr = "0xffff_0000_f026_2000"     # uint
+kernel-base-vaddr = "0xffff_0000_f159_f000"     # uint
 # Linear mapping offset, for quick conversions between physical and virtual
 # addresses.
 phys-virt-offset = "0xffff_0000_0000_0000"      # uint
