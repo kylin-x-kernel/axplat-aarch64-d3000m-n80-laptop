@@ -16,51 +16,35 @@ static mut BOOT_PT_L0: Aligned4K<[A64PTE; 512]> = Aligned4K::new([A64PTE::empty(
 #[unsafe(link_section = ".data.boot_page_table")]
 static mut BOOT_PT_L1: Aligned4K<[A64PTE; 512]> = Aligned4K::new([A64PTE::empty(); 512]);
 
-unsafe fn init_boot_page_table(boot_pt_l0_paddr: usize) {
+unsafe fn init_boot_page_table() {
     unsafe {
         // 0x0000_0000_0000 ~ 0x0080_0000_0000, table
-        // 注意：这里不能直接用 &raw mut BOOT_PT_L1，因为那是虚拟地址（虽然还没开MMU，但链接器认为是虚拟地址）
-        // 我们需要计算 BOOT_PT_L1 相对于 BOOT_PT_L0 的偏移
-        let l0_ptr = &raw mut BOOT_PT_L0 as usize;
-        let l1_ptr = &raw mut BOOT_PT_L1 as usize;
-        let offset = l1_ptr - l0_ptr;
-        let l1_paddr = boot_pt_l0_paddr + offset;
-
-        BOOT_PT_L0[0] = A64PTE::new_table(pa!(l1_paddr));
-        
-        // 0x0000_0000_0000..0x0000_4000_0000, 1G block, device memory
+        BOOT_PT_L0[0] = A64PTE::new_table(pa!(&raw mut BOOT_PT_L1 as usize));
         BOOT_PT_L1[0] = A64PTE::new_page(
             pa!(0),
             MappingFlags::READ | MappingFlags::WRITE | MappingFlags::DEVICE,
             true,
         );
+        // 0x0000_4000_0000..0x0000_8000_0000, 1G block, normal memory
+        BOOT_PT_L1[1] = A64PTE::new_page(
+            pa!(0x4000_0000),
+            MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE,
+            true,
+        );
 
-        // 动态映射当前物理内存所在的 1GB
-        // 假设 boot_pt_l0_paddr 就在内核代码附近
-        let kernel_base_1g = boot_pt_l0_paddr & !(0x4000_0000 - 1); // 对齐到 1GB
-        let idx = kernel_base_1g >> 30; // 1GB = 2^30
+        // 0x0000_8000_0000..0x0000_C000_0000, 1G block, normal memory_set
+        BOOT_PT_L1[2] = A64PTE::new_page(
+            pa!(0x8000_0000),
+            MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE,
+            true,
+        );
 
-        // 如果当前物理地址不在 0~1GB 范围内（即 idx > 0），我们需要在 L1 表中建立映射
-        // 注意：BOOT_PT_L1 只有 512 项，每项映射 1GB（因为它是 L1 表，且 L0 指向它）
-        // 等等，L0[0] 指向 L1。L0 的每一项覆盖 512GB。L1 的每一项覆盖 1GB。
-        // 所以 L1[0] 是 0~1GB, L1[1] 是 1GB~2GB。
-        
-        if idx < 512 {
-             BOOT_PT_L1[idx] = A64PTE::new_page(
-                pa!(kernel_base_1g),
-                MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE,
-                true,
-            );
-        }
-        
-        // 保留原来的 0x4000_0000 映射（为了兼容 QEMU 默认情况）
-        if idx != 1 {
-             BOOT_PT_L1[1] = A64PTE::new_page(
-                pa!(0x4000_0000),
-                MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE,
-                true,
-            );
-        }
+        // 0x0000_C000_0000..0x0001_0000_0000, 1G block, normal memory_set
+        BOOT_PT_L1[3] = A64PTE::new_page(
+            pa!(0xC000_0000),
+            MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE,
+            true,
+        );
     }
 }
 
@@ -131,7 +115,8 @@ unsafe extern "C" fn _start_primary() -> ! {
 
         mov     x0, x19                 // call_main(cpu_id, dtb)
         mov     x1, x20
-        bl      {entry}
+        ldr     x8, ={entry}
+        blr     x8
         b      .",
         switch_to_el1 = sym axcpu::init::switch_to_el1,
         init_mmu = sym init_mmu,

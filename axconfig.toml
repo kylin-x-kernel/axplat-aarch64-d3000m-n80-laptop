@@ -17,9 +17,9 @@ phys-memory-base = 0x8000_0000      # uint
 # Size of the whole physical memory. (128M)
 phys-memory-size = 0x800_0000       # uint
 # Base physical address of the kernel image.
-kernel-base-paddr = 0xf026_2000     # uint
+kernel-base-paddr = 0xf123e000     # uint
 # Base virtual address of the kernel image.
-kernel-base-vaddr = "0xffff_0000_f026_2000"     # uint
+kernel-base-vaddr = "0xffff_0000_f123_e000"     # uint
 # Linear mapping offset, for quick conversions between physical and virtual
 # addresses.
 phys-virt-offset = "0xffff_0000_0000_0000"      # uint
@@ -43,6 +43,7 @@ psci-method = "hvc"             # str
 # MMIO ranges with format (`base_paddr`, `size`).
 mmio-ranges = [
     [0x1800_2000, 0x1000],      # PL011 UART
+    [0xecd2_0000, 0x100_0000],  # VGA Framebuffer
     # [0x0910_0000, 0x1000],      # PL031 RTC
     # [0x0800_0000, 0x2_0000],    # GICv2
     # [0x0a00_0000, 0x4000],      # VirtIO

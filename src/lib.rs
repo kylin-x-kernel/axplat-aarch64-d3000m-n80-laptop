@@ -10,7 +10,8 @@ mod init;
 mod mem;
 mod power;
 mod gicv3;
-
+mod pl011;
+mod vga;
 pub mod config {
     //! Platform configuration module.
     //!
@@ -26,6 +27,6 @@ pub mod config {
     );
 }
 
-axplat_aarch64_peripherals::console_if_impl!(ConsoleIfImpl);
+// axplat_aarch64_peripherals::console_if_impl!(ConsoleIfImpl);
 axplat_aarch64_peripherals::time_if_impl!(TimeIfImpl);
 

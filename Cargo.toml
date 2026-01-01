@@ -19,7 +19,7 @@ fp-simd = ["axcpu/fp-simd"]
 irq = ["axplat/irq"]
 rtc = []
 smp = ["axplat/smp"]
-default = ["fp-simd", "irq", "rtc", "smp"]
+default = ["fp-simd"]
 
 [dependencies]
 log = "0.4"
@@ -32,6 +32,10 @@ aarch64-cpu = "11.2"
 arm-gic-driver = "0.14"
 kspin = "0.1"
 memory_addr = "0.4"
+lazyinit = "0.2"
+font8x8 = { version = "0.3", default-features = false, features = ["unicode"] }
+arm_pl011 = "0.1"
+minipng = "1.0.0"
 
 [package.metadata.docs.rs]
 targets = ["aarch64-unknown-none"]

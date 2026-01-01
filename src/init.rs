@@ -16,7 +16,7 @@ impl InitIf for InitIfImpl {
     /// early console, clocking).
     fn init_early(_cpu_id: usize, _dtb: usize) {
         axcpu::init::init_trap();
-        axplat_aarch64_peripherals::pl011::init_early(phys_to_virt(pa!(UART_PADDR)));
+        crate::pl011::init_early(phys_to_virt(pa!(UART_PADDR)));
         axplat_aarch64_peripherals::psci::init(PSCI_METHOD);
         axplat_aarch64_peripherals::generic_timer::init_early();
         #[cfg(feature = "rtc")]
@@ -47,6 +47,10 @@ impl InitIf for InitIfImpl {
             // enable UART IRQs
             axplat::irq::register(UART_IRQ, axplat_aarch64_peripherals::pl011::irq_handler);
         }
+
+        // Initialize VGA console with font scale 2 (16x16 pixels)
+        // VGA framebuffer is mapped at 0xffff_0000_ecd2_0000
+        crate::vga::init(2, 0xffff_0000_ecd2_0000);
     }
 
     /// Initializes the platform at the later stage for secondary cores.
