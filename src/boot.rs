@@ -127,7 +127,7 @@ unsafe extern "C" fn _start_primary() -> ! {
         boot_stack = sym BOOT_STACK,
         boot_stack_size = const BOOT_STACK_SIZE,
         // entry = sym test_main,
-        entry = sym axplat::call_main,
+        entry = sym axplat::call_main
     )
 }
 

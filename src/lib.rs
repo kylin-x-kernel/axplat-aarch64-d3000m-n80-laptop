@@ -11,7 +11,8 @@ mod mem;
 mod power;
 mod gicv3;
 mod pl011;
-mod vga;
+mod simplefb;
+// mod vga;
 pub mod config {
     //! Platform configuration module.
     //!

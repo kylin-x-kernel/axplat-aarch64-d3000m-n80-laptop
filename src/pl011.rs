@@ -28,14 +28,14 @@ pub fn getchar() -> Option<u8> {
 }
 
 /// Write a slice of bytes to the console.
-/// Also outputs to VGA console if initialized.
+/// Also outputs to SimpleFb console if initialized.
 pub fn write_bytes(bytes: &[u8]) {
     let mut uart = UART.lock();
     for c in bytes {
         do_putchar(&mut uart, *c);
     }
-    // Also output to VGA console
-    crate::vga::write_bytes(bytes);
+    // Also output to SimpleFb console
+    crate::simplefb::write_bytes(bytes);
 }
 
 /// Reads bytes from the console into the given mutable slice.

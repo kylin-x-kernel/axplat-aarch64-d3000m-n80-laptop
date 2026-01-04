@@ -48,9 +48,14 @@ impl InitIf for InitIfImpl {
             axplat::irq::register(UART_IRQ, axplat_aarch64_peripherals::pl011::irq_handler);
         }
 
-        // Initialize VGA console with font scale 2 (16x16 pixels)
-        // VGA framebuffer is mapped at 0xffff_0000_ecd2_0000
-        crate::vga::init(2, 0xffff_0000_ecd2_0000);
+        // Initialize SimpleFb console with font height 16 (16x16 pixels)
+        // Framebuffer is mapped at 0xffff_0000_ecd2_0000
+        crate::simplefb::init(simplefb::FramebufferConfig {
+            base_addr: 0xffff_0000_ecd2_0000,
+            width: 1920,
+            height: 1200,
+            font_height: 16,
+        });
     }
 
     /// Initializes the platform at the later stage for secondary cores.
