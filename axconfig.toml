@@ -44,6 +44,7 @@ psci-method = "hvc"             # str
 mmio-ranges = [
     [0x1800_2000, 0x1000],      # PL011 UART
     [0xecd2_0000, 0x100_0000],  # VGA Framebuffer
+    [0x1000_0000, 0x1_0000],    # LPC / PIO Space (Keyboard)
     # [0x0910_0000, 0x1000],      # PL031 RTC
     # [0x0800_0000, 0x2_0000],    # GICv2
     # [0x0a00_0000, 0x4000],      # VirtIO
