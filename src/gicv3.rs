@@ -1,11 +1,12 @@
-use aarch64_cpu::registers::*;
+use aarch64_cpu::registers::{MPIDR_EL1, Readable};
 use alloc::boxed::Box;
-use arm_gic_driver::*;
+use arm_gic_driver::DriverGeneric;
+use arm_gic_driver::Interface;
 use core::ptr::NonNull;
 use kspin::SpinNoIrq;
 
 use axplat::irq::{HandlerTable, IrqHandler, IrqIf};
-use log::{debug, info, trace, warn};
+use log::{debug, error, info, trace, warn};
 
 /// The maximum number of IRQs.
 const MAX_IRQ_COUNT: usize = 1024;
@@ -55,6 +56,7 @@ impl IrqIf for IrqIfImpl {
     /// IRQ handler table and calls the corresponding handler. If necessary, it
     /// also acknowledges the interrupt controller after handling.
     fn handle(_unused: usize) {
+        error!("Handling IRQ");
         let Some(irq) = GICR.lock().as_mut().unwrap().ack() else {
             return;
         };

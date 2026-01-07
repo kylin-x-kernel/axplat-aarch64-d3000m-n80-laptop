@@ -68,7 +68,7 @@ pub fn irq_handler() {
     UART.lock().ack_interrupts();
     if is_receive_interrupt {
         while let Some(c) = getchar() {
-            putchar(c);
+            do_putchar(&mut UART.lock(), c);
         }
     }
 }
