@@ -36,6 +36,7 @@ lazyinit = "0.2"
 arm_pl011 = "0.1"
 minipng = "1.0.0"
 simplefb = "0.1.0"
+ps2_keyboard = "0.1.0"
 
 [package.metadata.docs.rs]
 targets = ["aarch64-unknown-none"]

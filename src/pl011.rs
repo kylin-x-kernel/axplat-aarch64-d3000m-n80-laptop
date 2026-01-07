@@ -23,11 +23,8 @@ pub fn getchar() -> Option<u8> {
         return Some(c);
     }
     // Try keyboard
-    if crate::ps2_keyboard::KBD.is_inited() {
-        use crate::driver_input::{InputDriverOps, InputEvent};
-        if let Some(InputEvent::KeyPress(c)) = crate::ps2_keyboard::KBD.read_event() {
-            return Some(c);
-        }
+    if let Some(c) = ps2_keyboard::read_byte() {
+        return Some(c);
     }
     None
 }

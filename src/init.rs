@@ -37,7 +37,7 @@ impl InitIf for InitIfImpl {
     fn init_later(_cpu_id: usize, _dtb: usize) {
         // Initialize PS/2 Keyboard (Polling Mode)
         // PIO base is 0x1000_0000 (LPC Base), mapped at 0xffff_0000_1000_0000
-        crate::ps2_keyboard::init(0xffff_0000_1000_0000);
+        ps2_keyboard::init(0xffff_0000_1000_0000);
 
         #[cfg(feature = "irq")]
         {

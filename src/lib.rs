@@ -13,9 +13,7 @@ mod power;
 mod gicv3;
 mod pl011;
 mod simplefb;
-// mod vga;
-pub mod driver_input;
-pub mod ps2_keyboard;
+
 pub mod config {
     //! Platform configuration module.
     //!
