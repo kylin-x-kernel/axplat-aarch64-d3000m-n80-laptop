@@ -9,6 +9,7 @@ mod boot;
 mod init;
 mod mem;
 mod power;
+#[cfg(feature = "irq")]
 mod gicv3;
 mod pl011;
 mod simplefb;

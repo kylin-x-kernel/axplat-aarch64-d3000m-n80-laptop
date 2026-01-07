@@ -17,11 +17,6 @@ fn do_putchar(uart: &mut Pl011Uart, c: u8) {
     }
 }
 
-/// Writes a byte to the console.
-pub fn putchar(c: u8) {
-    do_putchar(&mut UART.lock(), c);
-}
-
 /// Reads a byte from the console, or returns [`None`] if no input is available.
 pub fn getchar() -> Option<u8> {
     if let Some(c) = UART.lock().getchar() {
@@ -70,6 +65,7 @@ pub fn init_early(uart_base: VirtAddr) {
 }
 
 /// UART IRQ Handler
+#[cfg(feature = "irq")]
 pub fn irq_handler() {
     let is_receive_interrupt = UART.lock().is_receive_interrupt();
     UART.lock().ack_interrupts();
@@ -82,7 +78,6 @@ pub fn irq_handler() {
 
 /// Default implementation of [`axplat::console::ConsoleIf`] using the
 /// PL011 UART.
-
 struct ConsoleIfImpl;
 
 #[axplat::impl_plat_interface]
