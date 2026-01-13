@@ -60,7 +60,7 @@ pub fn init_early() {
 /// Peripheral Interrupt).
 #[cfg(feature = "irq")]
 pub fn enable_irqs(timer_irq_num: usize) {
-    aarch64_cpu::registers::CNTP_CTL_EL0;
+    use aarch64_cpu::registers::CNTP_CTL_EL0;
     CNTP_CTL_EL0.write(CNTP_CTL_EL0::ENABLE::SET);
     CNTP_TVAL_EL0.set(0);
     axplat::irq::set_enable(timer_irq_num, true);
