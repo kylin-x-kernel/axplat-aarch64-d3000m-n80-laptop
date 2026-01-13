@@ -17,7 +17,7 @@ phys-memory-base = 0x8000_0000      # uint
 # Size of the whole physical memory. (128M)
 phys-memory-size = 0x800_0000       # uint
 # Base physical address of the kernel image.
-kernel-base-paddr = 0x8000_0000     # uint
+kernel-base-paddr = 0     # uint
 # Base virtual address of the kernel image.
 kernel-base-vaddr = "0xffff_0000_8000_0000"     # uint
 # Linear mapping offset, for quick conversions between physical and virtual
@@ -42,13 +42,11 @@ psci-method = "hvc"             # str
 [devices]
 # MMIO ranges with format (`base_paddr`, `size`).
 mmio-ranges = [
-    [0x1800_2000, 0x1000],      # PL011 UART
-    # [0x0910_0000, 0x1000],      # PL031 RTC
-    # [0x0800_0000, 0x2_0000],    # GICv2
-    # [0x0a00_0000, 0x4000],      # VirtIO
-    # [0x1000_0000, 0x2eff_0000],     # PCI memory ranges (ranges 1: 32-bit MMIO space)
-    # [0x40_1000_0000, 0x1000_0000],  # PCI config space
-]                                   # [(uint, uint)]
+    [0x1800_2000, 0x1000], # UART
+    [0x2680_0000, 0x20000], # GIC
+    [0xecd2_0000, 0x100_0000], # SimpleFB
+    [0x1000_0000, 0x1_0000], # PS2 Keyboard
+] # [(uint, uint)]
 virtio-mmio-ranges = [
     # [0x0a00_0000, 0x4000],      # VirtIO
 ]                                   # [(uint, uint)]
@@ -72,9 +70,9 @@ timer-irq = 30                  # uint
 ipi-irq = 1                     # uint
 
 # GIC Distributor base address
-gicd-paddr = 0xfe600000 # uint
+gicd-paddr = 0x26800000 # uint
 # GICR Address of rk3588
-gicr-paddr = 0xfe680000 # uint
+gicr-paddr = 0x26860000 # uint
 
 # pl031@9010000 {
 #     clock-names = "apb_pclk";
@@ -85,3 +83,8 @@ gicr-paddr = 0xfe680000 # uint
 # };
 # RTC (PL031) Address
 rtc-paddr = 0x901_0000          # uint
+
+# SimpleFB Address
+simplefb-paddr = 0xecd2_0000    # uint
+# PS2 Keyboard Address
+ps2-keyboard-paddr = 0x1000_0000 # uint

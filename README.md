@@ -1,1 +1,1 @@
-# axplat-aarch64-d3000m-pc
+# axplat-aarch64-d3000m-n80-laptop

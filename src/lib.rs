@@ -9,8 +9,11 @@ mod boot;
 mod init;
 mod mem;
 mod power;
-mod pl011;
+#[cfg(feature = "irq")]
 mod gicv3;
+mod pl011;
+mod generic_timer;
+mod simplefb;
 
 pub mod config {
     //! Platform configuration module.
@@ -26,6 +29,3 @@ pub mod config {
         "`PACKAGE` field in the configuration does not match the Package name. Please check your configuration file."
     );
 }
-
-axplat_aarch64_peripherals::time_if_impl!(TimeIfImpl);
-

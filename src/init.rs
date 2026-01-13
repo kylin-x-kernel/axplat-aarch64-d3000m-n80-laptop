@@ -1,7 +1,7 @@
 use axplat::init::InitIf;
 
 #[allow(unused_imports)]
-use crate::config::devices::{GICD_PADDR, GICR_PADDR, RTC_PADDR, TIMER_IRQ, UART_IRQ, UART_PADDR};
+use crate::config::devices::{GICD_PADDR, GICR_PADDR, RTC_PADDR, TIMER_IRQ, UART_IRQ, UART_PADDR, PS2_KEYBOARD_PADDR, SIMPLEFB_PADDR};
 use crate::config::plat::PSCI_METHOD;
 use axplat::mem::{pa, phys_to_virt};
 
@@ -15,10 +15,10 @@ impl InitIf for InitIfImpl {
     /// and performed earliest platform configuration and initialization (e.g.,
     /// early console, clocking).
     fn init_early(_cpu_id: usize, _dtb: usize) {
-        // axcpu::init::init_trap();
-        axplat_aarch64_peripherals::pl011::init_early(phys_to_virt(pa!(UART_PADDR)));
-        // axplat_aarch64_peripherals::psci::init(PSCI_METHOD);
-        axplat_aarch64_peripherals::generic_timer::init_early();
+        axcpu::init::init_trap();
+        crate::pl011::init_early(phys_to_virt(pa!(UART_PADDR)));
+        axplat_aarch64_peripherals::psci::init(PSCI_METHOD);
+        crate::generic_timer::init_early();
         #[cfg(feature = "rtc")]
         axplat_aarch64_peripherals::pl031::init_early(phys_to_virt(pa!(RTC_PADDR)));
     }
@@ -35,18 +35,30 @@ impl InitIf for InitIfImpl {
     /// initialization (e.g, logging, memory management), and finalized the rest of
     /// platform configuration and initialization.
     fn init_later(_cpu_id: usize, _dtb: usize) {
+        // Initialize PS/2 Keyboard (Polling Mode)
+        // PIO base is 0x1000_0000 (LPC Base), mapped at 0xffff_0000_1000_0000
+        ps2_keyboard::init(phys_to_virt(pa!(PS2_KEYBOARD_PADDR)).as_usize());
+
         #[cfg(feature = "irq")]
         {
             crate::gicv3::init(
                 phys_to_virt(pa!(GICD_PADDR)).as_usize(),
                 phys_to_virt(pa!(GICR_PADDR)).as_usize(),
             );
-            axplat_aarch64_peripherals::gic::init_gicc();
-            axplat_aarch64_peripherals::generic_timer::enable_irqs(TIMER_IRQ);
+            crate::generic_timer::enable_irqs(TIMER_IRQ);
 
             // enable UART IRQs
-            axplat::irq::register(UART_IRQ, axplat_aarch64_peripherals::pl011::irq_handler);
+            axplat::irq::register(UART_IRQ, crate::pl011::irq_handler);
         }
+
+        // Initialize SimpleFb console with font height 16 (16x16 pixels)
+        // Framebuffer is mapped at 0xffff_0000_ecd2_0000
+        crate::simplefb::init(simplefb::FramebufferConfig {
+            base_addr: phys_to_virt(pa!(SIMPLEFB_PADDR)).as_usize(),
+            width: 1920,
+            height: 1200,
+            font_height: 16,
+        });
     }
 
     /// Initializes the platform at the later stage for secondary cores.
@@ -54,8 +66,8 @@ impl InitIf for InitIfImpl {
     fn init_later_secondary(_cpu_id: usize) {
         #[cfg(feature = "irq")]
         {
-            axplat_aarch64_peripherals::gic::init_gicc();
-            axplat_aarch64_peripherals::generic_timer::enable_irqs(TIMER_IRQ);
+            crate::gicv3::init_current_cpu();
+            crate::generic_timer::enable_irqs(TIMER_IRQ);
         }
     }
 }
