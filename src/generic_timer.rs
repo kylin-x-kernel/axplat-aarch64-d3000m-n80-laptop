@@ -40,6 +40,9 @@ impl TimeIf for TimeIfImpl {
             CNTP_TVAL_EL0.set(0);
         }
     }
+
+    /// Returns the offset (in nanoseconds) between the epoch of the timer and
+    /// the Unix epoch (1970-01-01 00:00:00 UTC).
     fn epochoffset_nanos() -> u64 {
         0
     }
